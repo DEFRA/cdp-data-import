@@ -1,0 +1,92 @@
+name: Build stable
+on:
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  pull-requests: write
+  contents: read
+
+jobs:
+  build:
+    name: Build stable
+    runs-on: ubuntu-latest
+    env:
+      AWS_REGION: eu-west-2
+      AWS_ACCOUNT_ID: "094954420758"
+      ECR_REPO: "cdp-data-import"
+      ECR_IMAGE_NAME: "cdp-data-import"
+      LOCAL_TAG: "build"
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - name: Checkout
+        uses: DEFRA/cdp-build-action/checkout@stable
+
+      - name: Docker Login
+        uses: DEFRA/cdp-build-action/docker-login@stable
+        with:
+          iam-role-name: github-ecr-role
+
+      - name: Build image
+        uses: DEFRA/cdp-build-action/docker-build/build-image@stable
+        with:
+          image_name: ${{ env.ECR_IMAGE_NAME }}
+          tag: ${{ env.LOCAL_TAG }}
+
+      - name: Smoke test image
+        run: |
+          docker run --rm "${ECR_IMAGE_NAME}:${LOCAL_TAG}" bash -lc \
+            "pg_restore --version && \
+             psql --version && \
+             aws --version && \
+             aws-rds-token -h >/dev/null && \
+             mongorestore --version && \
+             mongosh --version && \
+             zip -v >/dev/null && \
+             test -f \"\$PGSSLROOTCERT\""
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v6.1.0
+        with:
+          aws-region: ${{ env.AWS_REGION }}
+          role-to-assume: arn:aws:iam::${{ env.AWS_ACCOUNT_ID }}:role/github-ecr-role
+
+      - run: aws sts get-caller-identity
+        shell: bash
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2.1.3
+        with:
+          mask-password: true
+
+      - name: Tag Image with stable commit sha
+        uses: DEFRA/cdp-build-action/docker-build/tag-image@stable
+        with:
+          aws_account_id: ${{ env.AWS_ACCOUNT_ID }}
+          aws_region: ${{ env.AWS_REGION }}
+          ecr_repo: ${{ env.ECR_REPO }}
+          image_name: ${{ env.ECR_IMAGE_NAME }}
+          local_tag: ${{ env.LOCAL_TAG }}
+          desired_tag: "stable-${{ github.sha }}"
+
+      - name: Push Image to ECR
+        uses: DEFRA/cdp-build-action/docker-build/push-image@stable
+        with:
+          aws_account_id: ${{ env.AWS_ACCOUNT_ID }}
+          aws_region: ${{ env.AWS_REGION }}
+          image_name: ${{ env.ECR_IMAGE_NAME }}
+          tag: "stable-${{ github.sha }}"
+
+      - name: Re-tag Image in ECR to stable
+        uses: DEFRA/cdp-build-action/docker-build/retag-image@stable
+        with:
+          aws_account_id: ${{ env.AWS_ACCOUNT_ID }}
+          aws_region: ${{ env.AWS_REGION }}
+          ecr_repo: ${{ env.ECR_REPO }}
+          image_name: ${{ env.ECR_IMAGE_NAME }}
+          commit_hash_tag: "stable-${{ github.sha }}"
+          desired_tag: stable
