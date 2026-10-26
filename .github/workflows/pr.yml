@@ -1,0 +1,33 @@
+name: Test Pull Request
+on:
+  pull_request:
+    branches: ["main"]
+
+permissions:
+  id-token: write
+  pull-requests: write
+  contents: read
+
+jobs:
+  build:
+    name: "Build and smoke test image"
+    runs-on: ubuntu-latest
+    env:
+      ECR_IMAGE_NAME: "cdp-data-import"
+      LOCAL_TAG: "test"
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Build image
+        uses: DEFRA/cdp-build-action/docker-build/build-image@stable
+        with:
+          image_name: ${{ env.ECR_IMAGE_NAME }}
+          tag: ${{ env.LOCAL_TAG }}
+
+      - name: Smoke test image
+        run: docker run --rm -v "$PWD/scripts:/scripts:ro" "${ECR_IMAGE_NAME}:${LOCAL_TAG}" bash /scripts/smoke-test.sh
