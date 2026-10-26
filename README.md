@@ -26,7 +26,7 @@ docker build -t cdp-data-import:test .
 ## Local smoke test
 
 ```bash
-docker run --rm cdp-data-import:test bash -lc "pg_restore --version && psql --version && aws --version && aws-rds-token -h >/dev/null && mongorestore --version && mongosh --version && zip -v >/dev/null && test -f \$PGSSLROOTCERT"
+docker run --rm -v "$PWD/scripts:/scripts:ro" cdp-data-import:test bash /scripts/smoke-test.sh
 ```
 
 ## Runtime usage

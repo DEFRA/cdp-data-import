@@ -30,13 +30,4 @@ jobs:
           tag: ${{ env.LOCAL_TAG }}
 
       - name: Smoke test image
-        run: |
-          docker run --rm "${ECR_IMAGE_NAME}:${LOCAL_TAG}" bash -lc \
-            "pg_restore --version && \
-             psql --version && \
-             aws --version && \
-             aws-rds-token -h >/dev/null && \
-             mongorestore --version && \
-             mongosh --version && \
-             zip -v >/dev/null && \
-             test -f \"\$PGSSLROOTCERT\""
+        run: docker run --rm -v "$PWD/scripts:/scripts:ro" "${ECR_IMAGE_NAME}:${LOCAL_TAG}" bash /scripts/smoke-test.sh

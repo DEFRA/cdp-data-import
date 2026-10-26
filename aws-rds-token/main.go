@@ -52,11 +52,7 @@ func main() {
 	}
 
 	if clusterID == "" || (dbUser == "" && !outputHost) {
-		fmt.Fprintf(
-			os.Stderr,
-			"Usage: %s -service <service-name> -user <db-user> [-port <port>] [-region <region>] [-host]\n",
-			os.Args[0],
-		)
+		fmt.Fprintf(os.Stderr, "Usage: %s -service <service-name> -user <db-user> [-port <port>] [-region <region>] [-host]\n", os.Args[0])
 		os.Exit(1)
 	}
 
@@ -118,11 +114,12 @@ func main() {
 		}
 	}
 	endpointWithPort := net.JoinHostPort(host, portStr)
-
+	
 	if outputHost {
 		fmt.Println(host)
 		os.Exit(0)
-	}
+	}	
+
 
 	token, err := auth.BuildAuthToken(ctx, endpointWithPort, cfg.Region, dbUser, cfg.Credentials)
 	if err != nil {
